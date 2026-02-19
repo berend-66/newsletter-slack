@@ -1,0 +1,31 @@
+[build]
+builder = "nixpacks"
+buildCommand = "npm ci && npm run build"
+
+[deploy]
+startCommand = "npm start"
+
+[variables]
+SLACK_BOT_TOKEN = ""
+SLACK_SIGNING_SECRET = ""
+SLACK_CLIENT_ID = ""
+SLACK_CLIENT_SECRET = ""
+SLACK_CHANNEL_ID = ""
+OPENAI_API_KEY = ""
+OPENAI_MODEL = "gpt-4o-mini"
+OLLAMA_URL = "http://localhost:11434"
+OLLAMA_MODEL = "llama3.2"
+APP_URL = "https://your-app.up.railway.app"
+NEXTAUTH_SECRET = ""
+WEBHOOK_SECRET = ""
+NEWSLETTER_SENDERS = "substack.com,beehiiv.com,datadrivenvc.io"
+
+[volumes]
+data = "/data"
+
+[mounts]
+source = "data"
+target = "/data"
+
+[env]
+DATABASE_URL = "file:/data/newsletter-slack.db"
