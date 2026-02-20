@@ -10,6 +10,13 @@ node_modules/
 /build
 /dist
 
+# Next.js
+/.next/
+/out/
+.next
+tsconfig.tsbuildinfo
+next-env.d.ts
+
 # Misc
 .DS_Store
 *.pem
