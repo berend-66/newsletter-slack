@@ -3,7 +3,7 @@ import { join } from 'path'
 
 export interface Newsletter {
   id: string
-  external_id?: string
+  external_id?: string | null
   subject: string
   sender_name: string
   sender_email: string
@@ -100,6 +100,18 @@ class NewsletterDatabase {
         themes TEXT NOT NULL, -- JSON array
         highlights TEXT NOT NULL, -- JSON array
         action_items TEXT NOT NULL, -- JSON array
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+
+    // Create RSS feeds table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS rss_feeds (
+        id TEXT PRIMARY KEY,
+        url TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        last_fetched DATETIME,
+        enabled BOOLEAN DEFAULT 1,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `)

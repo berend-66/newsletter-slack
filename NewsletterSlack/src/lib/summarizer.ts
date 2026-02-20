@@ -28,13 +28,23 @@ export interface CombinedDigest {
 
 import OpenAI from 'openai'
 
-// Initialize OpenAI client
-const openai = process.env.OPENAI_API_KEY 
-  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+// Initialize OpenAI client (check both OPENAI_API_KEY and OPENAI_API_KEY_PERSONAL)
+const openaiApiKey = process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_PERSONAL
+const openai = openaiApiKey 
+  ? new OpenAI({ apiKey: openaiApiKey })
+  : null
+
+// Check for OpenRouter API key
+const openrouterApiKey = process.env.OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY_PERSONAL
+const openrouter = openrouterApiKey
+  ? new OpenAI({
+      apiKey: openrouterApiKey,
+      baseURL: 'https://openrouter.ai/api/v1'
+    })
   : null
 
 // Ollama API client with timeout
-async function callOllama(prompt: string, systemPrompt: string): Promise<string> {
+async function callOllama(prompt: string, systemPrompt: string): Promise<{ text: string; provider: string }> {
   const ollamaUrl = process.env.OLLAMA_URL || 'http://localhost:11434'
   const model = process.env.OLLAMA_MODEL || 'llama3.2'
   const timeoutMs = 180000 // 3 minutes timeout
@@ -67,10 +77,13 @@ async function callOllama(prompt: string, systemPrompt: string): Promise<string>
     }
 
     const data = await response.json()
-    return data.response
+    return {
+      text: data.response,
+      provider: 'ollama'
+    }
   } catch (error) {
     clearTimeout(timeout)
-    if (error.name === 'AbortError') {
+    if (error instanceof Error && error.name === 'AbortError') {
       throw new Error('Ollama request timed out after 3 minutes')
     }
     throw error
@@ -78,7 +91,7 @@ async function callOllama(prompt: string, systemPrompt: string): Promise<string>
 }
 
 // OpenAI API call
-async function callOpenAI(prompt: string, systemPrompt: string): Promise<string> {
+async function callOpenAI(prompt: string, systemPrompt: string): Promise<{ text: string; provider: string }> {
   if (!openai) {
     throw new Error('OpenAI API key not configured')
   }
@@ -94,27 +107,67 @@ async function callOpenAI(prompt: string, systemPrompt: string): Promise<string>
       response_format: { type: 'json_object' },
     })
 
-    return response.choices[0]?.message?.content || '{}'
+    return {
+      text: response.choices[0]?.message?.content || '{}',
+      provider: 'openai'
+    }
   } catch (error) {
     console.error('OpenAI API error:', error)
     throw error
   }
 }
 
+// OpenRouter API call
+async function callOpenRouter(prompt: string, systemPrompt: string): Promise<{ text: string; provider: string }> {
+  if (!openrouter) {
+    throw new Error('OpenRouter API key not configured')
+  }
+
+  try {
+    const response = await openrouter.chat.completions.create({
+      model: process.env.OPENROUTER_MODEL || 'openrouter/auto',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.3,
+      response_format: { type: 'json_object' },
+    })
+
+    return {
+      text: response.choices[0]?.message?.content || '{}',
+      provider: 'openrouter'
+    }
+  } catch (error) {
+    console.error('OpenRouter API error:', error)
+    throw error
+  }
+}
+
 // Choose AI provider based on configuration
-async function callAI(prompt: string, systemPrompt: string): Promise<string> {
+async function callAI(prompt: string, systemPrompt: string): Promise<{ text: string; provider: string }> {
   // Try OpenAI first if configured
   if (openai) {
     try {
       return await callOpenAI(prompt, systemPrompt)
     } catch (error) {
-      console.log('OpenAI failed, falling back to Ollama:', error.message)
+      console.log('OpenAI failed, trying OpenRouter:', error instanceof Error ? error.message : String(error))
+      // Fall through to OpenRouter
+    }
+  }
+  
+  // Try OpenRouter if configured
+  if (openrouter) {
+    try {
+      return await callOpenRouter(prompt, systemPrompt)
+    } catch (error) {
+      console.log('OpenRouter failed, falling back to Ollama:', error instanceof Error ? error.message : String(error))
       // Fall through to Ollama
     }
   }
   
-  // Use Ollama as fallback or if OpenAI not configured
-  return callOllama(prompt, systemPrompt)
+  // Use Ollama as fallback or if no API keys configured
+  return await callOllama(prompt, systemPrompt)
 }
 
 /**
@@ -166,8 +219,8 @@ Respond in JSON format with the following structure:
 Focus on extracting actionable insights and the most important information. Keep key points concise but informative.`
 
   try {
-    const responseText = await callAI(prompt, systemPrompt)
-    const result = JSON.parse(responseText)
+    const aiResponse = await callAI(prompt, systemPrompt)
+    const result = JSON.parse(aiResponse.text)
 
     const summary: NewsletterSummary = {
       id: newsletter.id,
@@ -183,11 +236,13 @@ Focus on extracting actionable insights and the most important information. Keep
     }
 
     // Determine which model was used
-    let modelUsed = 'unknown'
-    if (openai) {
+    let modelUsed = aiResponse.provider
+    if (aiResponse.provider === 'openai') {
       modelUsed = process.env.OPENAI_MODEL || 'gpt-4o-mini'
-    } else {
-      modelUsed = process.env.OLLAMA_MODEL || 'ollama'
+    } else if (aiResponse.provider === 'openrouter') {
+      modelUsed = process.env.OPENROUTER_MODEL || 'openrouter/auto'
+    } else if (aiResponse.provider === 'ollama') {
+      modelUsed = process.env.OLLAMA_MODEL || 'llama3.2'
     }
 
     // Save to database
@@ -266,8 +321,8 @@ Respond in JSON format with the following structure:
 Identify 2-4 major themes that appear across multiple newsletters. Extract the top 3-5 most important highlights and any actionable recommendations.`
 
   try {
-    const responseText = await callAI(prompt, systemPrompt)
-    const result = JSON.parse(responseText)
+    const aiResponse = await callAI(prompt, systemPrompt)
+    const result = JSON.parse(aiResponse.text)
 
     return {
       generatedAt: new Date().toISOString(),

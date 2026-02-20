@@ -74,20 +74,32 @@ export async function POST(request: NextRequest) {
       // First try to parse as raw MIME email
       parsedEmail = await parseRawEmail(rawEmail)
     } catch (error) {
-      console.log('Failed to parse as raw MIME, trying forwarded format:', error.message)
+      console.log('Failed to parse as raw MIME, trying forwarded format:', error instanceof Error ? error.message : String(error))
       
       // Try to parse as forwarded email (plain text with headers)
       parsedEmail = parseForwardedEmail(rawEmail)
       
       if (!parsedEmail) {
-        // Last resort: treat as plain text
+        // Last resort: create a minimal ParsedEmail
+        // Generate ID from raw content
+        let hash = 0
+        for (let i = 0; i < rawEmail.length; i++) {
+          const char = rawEmail.charCodeAt(i)
+          hash = ((hash << 5) - hash) + char
+          hash = hash & hash
+        }
+        const id = Math.abs(hash).toString(36).padStart(8, '0')
+        
         parsedEmail = {
+          id,
+          externalId: null,
           subject: 'Email (unparsed)',
-          from: { name: 'Unknown', address: 'unknown@example.com' },
-          date: new Date(),
-          text: rawEmail,
-          html: null,
-          headers: new Map()
+          senderName: 'Unknown',
+          senderEmail: 'unknown@example.com',
+          receivedAt: new Date().toISOString(),
+          rawBody: rawEmail,
+          parsedBody: rawEmail,
+          isForwarded: false
         }
       }
     }
@@ -120,7 +132,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { 
         error: 'Failed to process email',
-        message: error.message
+        message: error instanceof Error ? error.message : String(error)
       },
       { status: 500 }
     )

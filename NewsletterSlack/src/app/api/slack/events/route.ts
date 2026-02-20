@@ -140,6 +140,7 @@ export async function POST(request: NextRequest) {
                 try {
                   const newsletter = {
                     id: newsletterId,
+                    external_id: newsletterData.external_id || null,
                     subject: newsletterData.subject,
                     sender_name: newsletterData.sender_name,
                     sender_email: newsletterData.sender_email,
