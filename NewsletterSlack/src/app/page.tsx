@@ -15,6 +15,21 @@ import {
 } from 'lucide-react'
 import { getDatabase } from '@/lib/database'
 
+function getAIStatus() {
+  const openaiKey = process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_PERSONAL
+  const openrouterKey = process.env.OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY_PERSONAL
+  
+  if (openaiKey && openrouterKey) {
+    return { status: 'multiple', message: 'Multiple AI providers configured' }
+  } else if (openaiKey) {
+    return { status: 'openai', message: 'OpenAI configured' }
+  } else if (openrouterKey) {
+    return { status: 'openrouter', message: 'OpenRouter configured' }
+  } else {
+    return { status: 'none', message: 'Configure AI API Key' }
+  }
+}
+
 async function getStats() {
   const db = getDatabase()
   const rawDb = db.getRawDb()
@@ -49,6 +64,8 @@ async function getStats() {
       enabled: number
     }>
     
+    const aiStatus = getAIStatus()
+    
     return {
       newsletterCount: newsletterCount?.count || 0,
       summaryCount: summaryCount?.count || 0,
@@ -64,7 +81,8 @@ async function getStats() {
         lastFetched: feed.last_fetched,
         enabled: feed.enabled === 1,
         status: feed.last_fetched ? 'active' : 'pending'
-      }))
+      })),
+      aiStatus
     }
   } catch (error) {
     console.error('Error fetching stats:', error)
@@ -81,12 +99,15 @@ async function getStats() {
       { id: 'confluence-vc', name: 'Confluence VC', status: 'active' }
     ]
     
+    const aiStatus = getAIStatus()
+    
     return {
       newsletterCount: 0,
       summaryCount: 0,
       feedCount: 9,
       latestNewsletter: null,
-      feeds: defaultFeeds
+      feeds: defaultFeeds,
+      aiStatus
     }
   }
 }
@@ -329,11 +350,17 @@ export default async function Home() {
           
           <div className="flex items-center justify-between p-4 bg-card-bg/50 rounded-lg">
             <div className="flex items-center gap-3">
-              <div className="w-2 h-2 rounded-full bg-amber-500"></div>
+              <div className={`w-2 h-2 rounded-full ${
+                stats.aiStatus.status === 'none' ? 'bg-amber-500' : 
+                stats.aiStatus.status === 'multiple' ? 'bg-purple-500' : 'bg-green-500'
+              }`}></div>
               <span>AI Summarization</span>
             </div>
-            <span className="text-sm text-amber-400">
-              {stats.summaryCount > 0 ? 'Ready (OpenAI needed for new)' : 'Configure OpenAI API Key'}
+            <span className={`text-sm ${
+              stats.aiStatus.status === 'none' ? 'text-amber-400' : 
+              stats.aiStatus.status === 'multiple' ? 'text-purple-400' : 'text-green-400'
+            }`}>
+              {stats.aiStatus.message}
             </span>
           </div>
           
