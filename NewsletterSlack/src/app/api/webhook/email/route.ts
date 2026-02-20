@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import crypto from 'crypto'
 import { parseRawEmail, parseForwardedEmail, parsedEmailToNewsletter } from '@/lib/email-parser'
-import { getDatabase } from '@/lib/database'
+import db from '@/lib/db'
 
 export async function POST(request: NextRequest) {
   try {
@@ -108,8 +109,21 @@ export async function POST(request: NextRequest) {
     const newsletterData = parsedEmailToNewsletter(parsedEmail, rawEmail, externalId)
     
     // Save to database
-    const db = getDatabase()
-    const newsletterId = db.insertNewsletter(newsletterData)
+    const newsletterId = crypto.randomUUID()
+    db.prepare(`
+      INSERT INTO newsletters (id, external_id, subject, sender_name, sender_email, received_at, raw_body, parsed_body, is_newsletter)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      newsletterId,
+      newsletterData.external_id || null,
+      newsletterData.subject,
+      newsletterData.sender_name,
+      newsletterData.sender_email,
+      newsletterData.received_at,
+      newsletterData.raw_body,
+      newsletterData.parsed_body,
+      newsletterData.is_newsletter ? 1 : 0
+    )
     
     console.log(`✅ Newsletter saved: ${newsletterData.subject} (ID: ${newsletterId})`)
     
