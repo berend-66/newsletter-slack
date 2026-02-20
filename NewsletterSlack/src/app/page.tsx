@@ -13,7 +13,7 @@ import {
   FileText,
   Globe
 } from 'lucide-react'
-import { getDatabase } from '@/lib/database'
+import db from '@/lib/db'
 
 function getAIStatus() {
   const openaiKey = process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_PERSONAL
@@ -31,28 +31,25 @@ function getAIStatus() {
 }
 
 async function getStats() {
-  const db = getDatabase()
-  const rawDb = db.getRawDb()
-  
   try {
-    const newsletterCount = rawDb.prepare(`
+    const newsletterCount = db.prepare(`
       SELECT COUNT(*) as count FROM newsletters
     `).get() as { count: number }
     
-    const summaryCount = rawDb.prepare(`
+    const summaryCount = db.prepare(`
       SELECT COUNT(*) as count FROM summaries
     `).get() as { count: number }
     
-    const feedCount = rawDb.prepare(`
+    const feedCount = db.prepare(`
       SELECT COUNT(*) as count FROM rss_feeds WHERE enabled = 1
     `).get() as { count: number }
     
-    const latestNewsletter = rawDb.prepare(`
+    const latestNewsletter = db.prepare(`
       SELECT subject, received_at FROM newsletters 
       ORDER BY received_at DESC LIMIT 1
     `).get() as { subject: string, received_at: string } | undefined
     
-    const feeds = rawDb.prepare(`
+    const feeds = db.prepare(`
       SELECT id, name, url, last_fetched, enabled 
       FROM rss_feeds 
       ORDER BY name

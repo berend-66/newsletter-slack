@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { RSSCollector, DEFAULT_FEEDS } from '@/lib/rss-collector'
-import { getDatabase } from '@/lib/database'
+import db from '@/lib/db'
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,25 +20,10 @@ export async function POST(request: NextRequest) {
     const collector = new RSSCollector()
     
     // Initialize RSS feeds table with default feeds
-    const db = getDatabase()
-    const rawDb = db.getRawDb()
-    
-    // Insert default feeds if they don't exist
-    for (const feed of DEFAULT_FEEDS) {
-      const existing = rawDb.prepare(`
-        SELECT id FROM rss_feeds WHERE url = ?
-      `).get(feed.url)
-      
-      if (!existing) {
-        rawDb.prepare(`
-          INSERT INTO rss_feeds (id, url, name, enabled)
-          VALUES (?, ?, ?, ?)
-        `).run(feed.id, feed.url, feed.name, feed.enabled ? 1 : 0)
-      }
-    }
+    // (already done in db.ts schema creation, but we ensure they exist)
     
     // Get all enabled feeds
-    const feeds = rawDb.prepare(`
+    const feeds = db.prepare(`
       SELECT * FROM rss_feeds WHERE enabled = 1
     `).all() as Array<{
       id: string
@@ -80,11 +65,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
-  const db = getDatabase()
-  const rawDb = db.getRawDb()
-  
   try {
-    const feeds = rawDb.prepare(`
+    const feeds = db.prepare(`
       SELECT * FROM rss_feeds 
       ORDER BY name
     `).all() as Array<{
@@ -96,7 +78,7 @@ export async function GET() {
       created_at: string
     }>
     
-    const newsletterResult = rawDb.prepare(`
+    const newsletterResult = db.prepare(`
       SELECT COUNT(*) as count FROM newsletters
     `).get() as { count: number } | undefined
     
@@ -108,8 +90,13 @@ export async function GET() {
     })
     
   } catch (error) {
+    console.error('Database error in RSS GET:', error)
     return NextResponse.json(
-      { error: 'Database error' },
+      { 
+        error: 'Database error',
+        message: error instanceof Error ? error.message : String(error),
+        stack: process.env.NODE_ENV === 'development' ? error instanceof Error ? error.stack : undefined : undefined
+      },
       { status: 500 }
     )
   }

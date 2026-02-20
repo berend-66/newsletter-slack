@@ -1,6 +1,6 @@
 // Using any for rss-parser since types aren't available
 const Parser = require('rss-parser')
-import { getDatabase } from './database'
+import db from './db'
 
 export interface RSSFeed {
   id: string
@@ -91,7 +91,6 @@ Unsubscribe: ${feedEmail}
    * Process all feeds and save to database
    */
   async processFeeds(feeds: RSSFeed[]): Promise<{ processed: number; total: number }> {
-    const db = getDatabase()
     let processed = 0
     const total = feeds.length
     
@@ -104,7 +103,7 @@ Unsubscribe: ${feedEmail}
         
         for (const item of items) {
           // Check if already exists by guid or link
-          const existing = db.getRawDb().prepare(`
+          const existing = db.prepare(`
             SELECT id FROM newsletters 
             WHERE external_id = ? OR parsed_body LIKE ?
           `).get(item.guid || '', `%${item.link}%`)
@@ -123,7 +122,7 @@ Unsubscribe: ${feedEmail}
             // Save to database (using our existing email parser)
             // We'll need to call the email parser here
             // For now, store raw
-            db.getRawDb().prepare(`
+            db.prepare(`
               INSERT INTO newsletters (
                 id, external_id, subject, sender_name, sender_email,
                 received_at, raw_body, parsed_body, is_newsletter
@@ -146,7 +145,7 @@ Unsubscribe: ${feedEmail}
         }
         
         // Update last fetched timestamp
-        db.getRawDb().prepare(`
+        db.prepare(`
           UPDATE rss_feeds 
           SET last_fetched = ? 
           WHERE id = ?

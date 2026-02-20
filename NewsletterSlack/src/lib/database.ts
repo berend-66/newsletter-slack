@@ -43,7 +43,9 @@ class NewsletterDatabase {
   private db: Database.Database
 
   constructor() {
-    const dbPath = join(process.cwd(), 'newsletters.db')
+    // Use SQLITE_PATH environment variable or default to newsletters.db in current directory
+    const dbPath = process.env.SQLITE_PATH || join(process.cwd(), 'newsletters.db')
+    console.log(`📊 Database path: ${dbPath}`)
     this.db = new Database(dbPath)
     this.initSchema()
   }

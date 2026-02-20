@@ -42,6 +42,28 @@ db.exec(`
     action_items JSON,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+
+  -- RSS feeds table
+  CREATE TABLE IF NOT EXISTS rss_feeds (
+    id TEXT PRIMARY KEY,
+    url TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    last_fetched DATETIME,
+    enabled BOOLEAN DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  -- Insert default RSS feeds if table is empty
+  INSERT OR IGNORE INTO rss_feeds (id, url, name, enabled) VALUES
+    ('the-ai-corner', 'https://newsletter.theaicorner.io/feed', 'The AI Corner (Substack)', 1),
+    ('bytebytego', 'https://blog.bytebytego.com/feed', 'ByteByteGo (Substack)', 1),
+    ('data-driven-vc', 'https://www.datadrivenvc.io/feed', 'Data Driven VC', 1),
+    ('tom-tunguz', 'https://tomtunguz.com/feed/', 'Tomasz Tunguz Blog', 1),
+    ('ainews', 'https://www.latent.space/feed', 'Latent Space', 1),
+    ('nates-substack', 'https://nate.substack.com/feed', 'Nate''s Substack', 1),
+    ('the-vc-corner', 'https://www.thevccorner.com/feed', 'The VC Corner', 1),
+    ('adaline-labs', 'https://www.adalinelabs.com/feed', 'Adaline Labs', 1),
+    ('confluence-vc', 'https://www.confluence.vc/feed', 'Confluence VC', 1);
 `)
 
 export interface NewsletterRow {
