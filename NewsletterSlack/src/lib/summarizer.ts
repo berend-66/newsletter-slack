@@ -144,24 +144,24 @@ async function callOpenRouter(prompt: string, systemPrompt: string): Promise<{ t
   }
 }
 
-// Choose AI provider based on configuration
+// Choose AI provider based on configuration - OpenRouter first (cheaper), then OpenAI, then Ollama
 async function callAI(prompt: string, systemPrompt: string): Promise<{ text: string; provider: string }> {
-  // Try OpenAI first if configured
-  if (openai) {
-    try {
-      return await callOpenAI(prompt, systemPrompt)
-    } catch (error) {
-      console.log('OpenAI failed, trying OpenRouter:', error instanceof Error ? error.message : String(error))
-      // Fall through to OpenRouter
-    }
-  }
-  
-  // Try OpenRouter if configured
+  // Try OpenRouter first if configured (cheaper alternative)
   if (openrouter) {
     try {
       return await callOpenRouter(prompt, systemPrompt)
     } catch (error) {
-      console.log('OpenRouter failed, falling back to Ollama:', error instanceof Error ? error.message : String(error))
+      console.log('OpenRouter failed, trying OpenAI:', error instanceof Error ? error.message : String(error))
+      // Fall through to OpenAI
+    }
+  }
+  
+  // Try OpenAI if configured
+  if (openai) {
+    try {
+      return await callOpenAI(prompt, systemPrompt)
+    } catch (error) {
+      console.log('OpenAI failed, falling back to Ollama:', error instanceof Error ? error.message : String(error))
       // Fall through to Ollama
     }
   }
