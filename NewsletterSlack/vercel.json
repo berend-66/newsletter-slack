@@ -1,19 +1,14 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/next"
-    }
-  ],
-  "env": {
-    "SQLITE_PATH": "/tmp/newsletter-slack.db"
-  },
+  "framework": "nextjs",
   "functions": {
     "src/app/api/**/*.ts": {
       "maxDuration": 60,
       "memory": 1024
     }
+  },
+  "env": {
+    "SQLITE_PATH": "/tmp/newsletter-slack.db"
   },
   "regions": ["fra1"]
 }
