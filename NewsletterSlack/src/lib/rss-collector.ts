@@ -1,6 +1,7 @@
 // Using any for rss-parser since types aren't available
 const Parser = require('rss-parser')
 import db from './db'
+import { summarizeNewsletter } from './summarizer'
 
 export interface RSSFeed {
   id: string
@@ -141,6 +142,34 @@ Unsubscribe: ${feedEmail}
             
             processed++
             console.log(`Saved: ${item.title}`)
+            
+            // Trigger AI summarization async if AI is configured
+            const openaiKey = process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_PERSONAL
+            const openrouterKey = process.env.OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY_PERSONAL
+            
+            if (openaiKey || openrouterKey) {
+              setTimeout(async () => {
+                try {
+                  const newsletterRow = {
+                    id,
+                    external_id: item.guid || item.link,
+                    subject: item.title,
+                    sender_name: feed.name,
+                    sender_email: `${feed.name.toLowerCase().replace(/\s+/g, '.')}@rss.feed`,
+                    received_at: new Date(item.pubDate).toISOString(),
+                    raw_body: emailContent,
+                    parsed_body: item.contentSnippet || item.content || '',
+                    is_newsletter: true,
+                    created_at: new Date().toISOString()
+                  }
+                  
+                  await summarizeNewsletter(newsletterRow as any)
+                  console.log(`✅ AI summary generated for: ${item.title}`)
+                } catch (error) {
+                  console.error(`Failed to summarize ${item.title}:`, error instanceof Error ? error.message : String(error))
+                }
+              }, 1000) // Delay 1 second to avoid rate limits
+            }
           }
         }
         

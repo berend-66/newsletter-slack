@@ -235,7 +235,7 @@ export default async function Home() {
           </form>
           
           <Link 
-            href="/api/newsletters" 
+            href="/newsletters" 
             className="group"
           >
             <div className="w-full glass-card p-6 hover:bg-card-bg/80 transition-colors cursor-pointer">
